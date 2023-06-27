@@ -1,5 +1,5 @@
 {
-	"name": "sb-components",
+	"name": "@soc-bong/sb-components",
 	"version": "0.0.1",
 	"scripts": {
 		"dev": "vite dev",
