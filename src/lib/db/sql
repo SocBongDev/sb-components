@@ -1,36 +1,54 @@
+-- Create Branch Table
+CREATE TABLE branch (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR,
+  address VARCHAR
+);
+
+-- Create Class Room Table
+CREATE TABLE class_room (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR,
+  branch_id INTEGER REFERENCES branch(id) -- Foreign key referencing branch table's primary key (id)
+);
+
 -- Create Student Table
 CREATE TABLE student (
   id SERIAL PRIMARY KEY,
-  grade TEXT,
-  first_name TEXT,
-  last_name TEXT,
+  grade VARCHAR,
+  first_name VARCHAR,
+  last_name VARCHAR,
   enroll_date DATE,
   dob DATE,
-  phone_1 TEXT,
-  phone_2 TEXT,
-  zalo TEXT,
-  birth_year TEXT,
-  sex TEXT,
-  ethnic TEXT,
-  birth_place TEXT,
-  temp_res TEXT,
-  perm_res_province TEXT,
-  perm_res_district TEXT,
-  perm_res_commune TEXT
+  phone_1 VARCHAR,
+  phone_2 VARCHAR,
+  zalo VARCHAR,
+  birth_year VARCHAR,
+  sex VARCHAR,
+  ethnic VARCHAR,
+  birth_place VARCHAR,
+  temp_res VARCHAR,
+  perm_res_province VARCHAR,
+  perm_res_district VARCHAR,
+  perm_res_commune VARCHAR,
+  class_room_id INTEGER REFERENCES class_room(id), -- Foreign key referencing class_room table's primary key (id)
+
+  -- Composite key for the combination of first_name, last_name, and dob
+  CONSTRAINT composite_key UNIQUE (first_name, last_name, dob)
 );
 
 -- Create Parent Table
 CREATE TABLE parent (
   id SERIAL PRIMARY KEY,
-  student_id INT REFERENCES student(id),
-  father_name TEXT,
-  father_dob INT,
-  father_occupation TEXT,
-  mother_name TEXT,
-  mother_dob INT,
-  mother_occupation TEXT,
-  landlord TEXT,
-  roi TEXT,
-  birthplace TEXT,
-  res_registration TEXT
+  student_id INTEGER REFERENCES student(id),
+  father_name VARCHAR,
+  father_dob DATE,
+  father_occupation VARCHAR,
+  mother_name VARCHAR,
+  mother_dob DATE,
+  mother_occupation VARCHAR,
+  landlord VARCHAR,
+  roi VARCHAR,
+  birthplace VARCHAR,
+  res_registration VARCHAR
 );
