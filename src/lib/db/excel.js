@@ -5,12 +5,15 @@ import {
 	checkHeaderFile,
 	readRowsAndConvertToJson,
 	transformDataKeys,
-	extractData
+	extractData, 
+	insertStudentAndParent,
+	mergeStudentParentData,
+	writeDataToTemplate
 } from './util.js'
 import { insertClassRoom } from './class_room.js'
-import { insertParent } from './parent.js'
-import { insertStudent } from './student.js'
-import { attributeMappings } from './keyword_mapping.js'
+import { getParentsByStudentId } from './parent.js'
+import { getStudentsFromClassroom, selectIdFromStudentData } from './student.js'
+
 // Export Template file
 export function exportTemplateStudentList(class_name) {
 	let originalFileName = 'src/lib/Danh_sach_hoc_sinh.xlsx'
@@ -34,7 +37,7 @@ export function exportTemplateStudentList(class_name) {
 	})
 }
 
-export function readStudentListFile(filePath, sheetName) {
+export async function readStudentListFile(filePath, sheetName, class_room_id, branch_id) {
 	let worksheet = readExcelFile(filePath, sheetName)
 
 	// Define the expected main and sub header rows
@@ -141,17 +144,20 @@ export function readStudentListFile(filePath, sheetName) {
 	}
 	let data = readRowsAndConvertToJson(worksheet, headers, subheaders)
 	// const studentData = transformDataKeys(data, attributeMappings.student);
-	let extractedData = extractData(data, attributeMappings)
-	let studentData = extractedData.map(item => item.student);
-	let parentData  =  extractedData.map(item => item.paren);
-	const student = insertStudent(studentData)
-	for (const data of extractedData) {
 
-		// Process the student object as needed
-	}
+	await insertStudentAndParent(data, class_room_id, branch_id)
+}
 
-	// for (const data of extractedData) {
-	// 	const parentData = insertParent(data.parentData)
-	// 	// Process the student object as needed
-	// }
+
+export async function exportAttendance(branch_id, class_room_id){
+	let studentData = await getStudentsFromClassroom(branch_id, class_room_id)
+	let studentIds = await selectIdFromStudentData(studentData);
+	let parentData = await getParentsByStudentId(studentIds)
+	// Merge student and parent data based on student_id
+	const mergedData = mergeStudentParentData(studentData, parentData);
+	writeDataToTemplate(mergedData)
+	// // Load the template Excel file
+	// const templatePath = 
+	// let worksheet = readExcelFile(filePath, sheetName)
+
 }

@@ -1,28 +1,26 @@
--- Create Branch Table
+  -- Table: branch
 CREATE TABLE branch (
   id SERIAL PRIMARY KEY,
-  name VARCHAR,
-  address VARCHAR
+  name VARCHAR NOT NULL,
+  address VARCHAR NOT NULL UNIQUE
 );
 
--- Create Class Room Table
+-- Table: class_room
 CREATE TABLE class_room (
   id SERIAL PRIMARY KEY,
-  name VARCHAR,
-  branch_id INTEGER REFERENCES branch(id) -- Foreign key referencing branch table's primary key (id)
+  name VARCHAR NOT NULL,
+  branch_id INTEGER NOT NULL REFERENCES branch(id),
+  CONSTRAINT unique_branch_id_name UNIQUE (branch_id, name)
 );
 
--- Create Student Table
+  -- Table: student
 CREATE TABLE student (
   id SERIAL PRIMARY KEY,
-  grade VARCHAR,
-  first_name VARCHAR,
-  last_name VARCHAR,
+  grade VARCHAR NOT NULL,
+  first_name VARCHAR NOT NULL,
+  last_name VARCHAR NOT NULL,
   enroll_date DATE,
-  dob DATE,
-  phone_1 VARCHAR,
-  phone_2 VARCHAR,
-  zalo VARCHAR,
+  dob VARCHAR,
   birth_year VARCHAR,
   sex VARCHAR,
   ethnic VARCHAR,
@@ -31,24 +29,37 @@ CREATE TABLE student (
   perm_res_province VARCHAR,
   perm_res_district VARCHAR,
   perm_res_commune VARCHAR,
-  class_room_id INTEGER REFERENCES class_room(id), -- Foreign key referencing class_room table's primary key (id)
-
-  -- Composite key for the combination of first_name, last_name, and dob
-  CONSTRAINT composite_key UNIQUE (first_name, last_name, dob)
+  class_room_id INTEGER NOT NULL REFERENCES class_room(id),
+  CONSTRAINT unique_student_name_dob UNIQUE (first_name, last_name, dob)
 );
+-- Index: composite_key
+CREATE INDEX composite_key ON student (first_name, last_name, dob);
 
--- Create Parent Table
+-- Table: parent
 CREATE TABLE parent (
   id SERIAL PRIMARY KEY,
-  student_id INTEGER REFERENCES student(id),
-  father_name VARCHAR,
-  father_dob DATE,
-  father_occupation VARCHAR,
-  mother_name VARCHAR,
-  mother_dob DATE,
-  mother_occupation VARCHAR,
+  student_id INTEGER NOT NULL REFERENCES student(id),
+  name VARCHAR,
+  dob VARCHAR,
+  sex VARCHAR,
+  phone_number VARCHAR,
+  zalo VARCHAR,
+  occupation VARCHAR,
   landlord VARCHAR,
   roi VARCHAR,
   birthplace VARCHAR,
-  res_registration VARCHAR
+  res_registration VARCHAR,
+  CONSTRAINT unique_student_id_name UNIQUE (student_id, name, sex)
 );
+
+
+  -- Table: support
+  CREATE TABLE support (
+    id SERIAL PRIMARY KEY,
+    parent_name VARCHAR,
+    student_name VARCHAR,
+    phone_number VARCHAR,
+    student_dob DATE,
+    student_grade VARCHAR,
+    description VARCHAR
+  );

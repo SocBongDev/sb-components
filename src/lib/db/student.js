@@ -1,90 +1,138 @@
+process.argv.push('--experimental-modules');
 import { attributeMappings } from './keyword_mapping.js'
 import { supabase } from './supabase.js'
-import { DateTime } from 'luxon'
-// Function to insert a student record
-export const insertStudent = async (studentData) => {
-  try {
-    preprocessDate('dob', studentData); // Preprocess the 'dob' date field
-    preprocessDate('enroll_date', studentData);
-    const { data, error, response } = await supabase.from('student').insert(studentData);
 
-    if (error) {
-      throw new Error(`Error inserting student: ${error.message}`);
+
+export const insertStudent = async (studentData, class_room_id) => {
+  try {
+    // Prepare data for insertion/upsertion
+    const dataToInsert = [];
+    const dataToUpdate = [];
+
+    for (const student of studentData) {
+      const { first_name, last_name, dob } = student;
+
+      // Check if the student already exists in the database based on the unique identifier
+      const { data: existingStudent, error } = await supabase
+        .from('student')
+        .select('*')
+        .eq('first_name', first_name)
+        .eq('last_name', last_name)
+        .eq('dob', dob);
+
+      if (error) {
+        throw new Error(`Error fetching existing student data: ${error.message}`);
+      }
+
+      if (!existingStudent || existingStudent.length === 0) {
+        // Student does not exist, add to dataToInsert
+        dataToInsert.push({ ...student, class_room_id });
+      } else {
+        // Student already exists, add to dataToUpdate
+        dataToUpdate.push({ ...student, id: existingStudent[0].id });
+      }
     }
 
-    console.log('Student inserted successfully:', data);
+    // Perform the insertion/upsertion operations
+    const { data: insertedData, error: upsertError } = await supabase
+      .from('student')
+      .upsert([...dataToInsert, ...dataToUpdate], { returning: 'minimal', onConflict: ['first_name', 'last_name', 'dob'] });
+
+    if (upsertError) {
+      throw new Error(`Error inserting/updating student data: ${upsertError.message}`);
+    }
+
+    console.log('Student inserted/updated successfully:', insertedData);
+    return insertedData;
   } catch (error) {
-    console.error('Error inserting student:', error);
-    // console.log('Error data:', studentData); // Print the student data causing the error
+    console.error('Error inserting/updating student data:', error);
+    return [];
   }
 };
 
-function preprocessDate(dateKey, data) {
-  data.forEach((row) => {
-    if (row[dateKey]) {
-      let formattedDate = null;
 
-      try {
-        let parsedDate = DateTime.fromFormat(row[dateKey], 'dd/MM/yyyy');
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'dd/M/yyyy');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'd/MM/yyyy');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'd/M/yyyy');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'dd/MM/yy');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'dd/M/yy');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'd/MM/yy');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'd/M/yy');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'yyyy/M/dd');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'yyyy/MM/d');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'yyyy/M/d');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'yy/MM/dd');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'yy/M/dd');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'yy/MM/d');
-        }
-        if (!parsedDate.isValid) {
-          parsedDate = DateTime.fromFormat(row[dateKey], 'yy/M/d');
-        }
-        formattedDate = parsedDate.toFormat('yyyy/MM/dd');
-      } catch (error) {
-        // Handle the error here
-        formattedDate = null;
+export async function selectIdFromStudentData(studentData) {
+  try {
+    const studentIds = [];
+    for (const student of studentData) {
+      // Initialize the query without the 'dob' filter
+      let query = supabase
+        .from('student')
+        .select('id')
+        .eq('first_name', student.first_name)
+        .eq('last_name', student.last_name);
+
+      // If 'dob' is not null, include the 'dob' filter in the query
+      if (student.dob !== null) {
+        query = query.eq('dob', student.dob);
+      } else {
+        // If 'dob' is null, also include null dob records in the query
+        query = query.is('dob', null);
       }
 
-      row[dateKey] = formattedDate;
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching student:', error);
+        studentIds.push(null); // Push null to indicate that an error occurred for this student
+      } else if (data && data.length > 0) {
+        // Push the first matching student ID to the studentIds array
+        studentIds.push(data[0].id);
+      } else {
+        console.error('Student not found with first name:', student.first_name, 'and last name:', student.last_name);
+        studentIds.push(null); // Push null to indicate that the student was not found in the database
+      }
     }
-    else{
-      row[dateKey] = null;
-    }
-  });
+
+    return studentIds;
+  } catch (error) {
+    console.error('Error selecting student IDs:', error);
+    return []; // Return an empty array in case of an error
+  }
 }
-function preprocessInterger(key, data){
-  data.forEach((row) => {
-    if (!row[key]) {
-      row[dataKey] = 0
+
+
+// Assuming you have the correct import for the Supabase client
+// Function to get all students from a class room of a branch
+export async function getStudentsFromClassroom(branch_id, class_room_id) {
+  try {
+    // Fetch the class_room_id based on the provided branch_id
+    const { data: classRoomData, error: classRoomError } = await supabase
+      .from('class_room')
+      .select('id')
+      .eq('branch_id', branch_id)
+      .eq('id', class_room_id);
+
+    if (classRoomError) {
+      console.error('Error fetching class room:', classRoomError);
+      return [];
     }
-  });
+
+    if (!classRoomData || classRoomData.length === 0) {
+      console.log('Class room not found with the provided branch_id and class_room_id.');
+      return [];
+    }
+
+    // Fetch all students from the specified class room of the branch
+    const { data: studentData, error: studentError } = await supabase
+      .from('student')
+      .select('*')
+      .eq('class_room_id', classRoomData[0].id);
+
+    if (studentError) {
+      console.error('Error fetching students:', studentError);
+      return [];
+    }
+
+    if (studentData && studentData.length > 0) {
+      console.log('Students found in the class room:', studentData);
+      return studentData;
+    } else {
+      console.log('No students found in the class room.');
+      return [];
+    }
+  } catch (error) {
+    console.error('Error getting students from the class room:', error);
+    return [];
+  }
 }
